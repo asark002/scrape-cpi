@@ -9,8 +9,6 @@ import scrapy
 
 
 class OduCpiItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
     project_name = scrapy.Field()
     course = scrapy.Field()
     url = scrapy.Field()

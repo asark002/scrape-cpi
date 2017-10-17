@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from os import path
+from os import mkdir, path
 import sqlite3
 
 from scrapy.exceptions import DropItem
@@ -12,15 +12,28 @@ from scrapy.exceptions import DropItem
 
 
 class WriteToFilePipeline(object):
+    """
+    Write the body of the scraped project site into a local HTML file
+    """
 
     def process_item(self, item, spider):
+        # make output folder if not present
+        # @TODO make dir name configurable in settings
+        if not path.exists('output'):
+            mkdir('output')
+
+        # create a HTML file using body of project site
         filename = '{0}-{1}.html'.format(item['course'], item['project_name'])
         with open(path.join('output', filename), 'w') as f:
             f.write(item['content'])
+
         return item
 
 
 class SQLitePipeline(object):
+    """
+    Write the body of the scraped project site into a SQLite database.
+    """
 
     def open_spider(self, spider):
         self.db = sqlite3.connect('test.sqlite')
