@@ -58,3 +58,10 @@ class SQLitePipeline(object):
         cur.close()
         return DropItem('%s already stored' % (item['url']))
 
+
+class ParseElements(object):
+
+    def process_item(self, item, spider):
+        for i in item['content']:
+            print(i.text)
+
