@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
+from io import StringIO
 from os import mkdir, path
 import sqlite3
 
 from scrapy.exceptions import DropItem
+import six
 
 # Define your item pipelines here
 #
@@ -61,7 +63,20 @@ class SQLitePipeline(object):
 
 class ParseElements(object):
 
+    ignored_tags = ['script']
+
     def process_item(self, item, spider):
-        for i in item['content']:
-            print(i.text)
+        iobuffer = StringIO()
+        self._parse(item['content'], iobuffer)
+        #print(iobuffer.getvalue())
+
+    def _parse(self, element, iobuffer):
+        """
+        """
+        for elem in element:
+            if elem.tag not in self.ignored_tags:
+                #self.buff.write(elem.text)
+                if isinstance(elem.text, six.string_types):
+                    iobuffer.write(elem.text)
+            self._parse(elem, iobuffer)
 

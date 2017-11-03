@@ -1,4 +1,8 @@
+from os import path
+
 import scrapy
+from scrapy_splash import SplashRequest
+from twisted.web import http
 
 from odu_cpi import items
 
@@ -32,6 +36,7 @@ class PreviousProjectSpider(scrapy.Spider):
                             'project_name': name,
                             'splash': {
                                 'args': {
+                                    'wait': 1,
                                     'html': 1,
                                     'png': 1,
                                 }
@@ -44,6 +49,11 @@ class PreviousProjectSpider(scrapy.Spider):
     def parse_projects(self, response):
         """
         """
+        # @FIXME
+        ignore_url_prefix = ['/?', '?', '#', 'mailto:']
+        acceptable_url_prefix = ['/']
+        acceptable_extensions = ['', '.html', '.htm', '.php']
+
         content = response.xpath('//body')
         if len(content) == 1:
             cpi_item = items.OduCpiItem(
@@ -52,6 +62,29 @@ class PreviousProjectSpider(scrapy.Spider):
                 url = response.url,
                 content = content[0].root)
             yield cpi_item
+
+        #
+        for link in response.xpath('//a/@href'):
+            link = link.extract()
+            base_url, ext = path.splitext(link)
+            if len(base_url) > 0:
+                if base_url[0] not in ignore_url_prefix and base_url[0] in acceptable_url_prefix:
+                    print('\t[X] >>>> ' + link)
+                    yield response.follow(
+                        link,
+                        callback = self.parse_projects,
+                        meta = {
+                            'course': response.meta['course'],
+                            'project_name': response.meta['project_name'],
+                            'splash': {
+                                'args': {
+                                    'wait': 1,
+                                    'html': 1,
+                                    'png': 1,
+                                }
+                            }
+                        }
+                    )
 
     def request_error(self, failure):
         """
