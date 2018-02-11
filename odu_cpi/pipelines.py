@@ -1,60 +1,33 @@
 # -*- coding: utf-8 -*-
 
-from os import mkdir, path
-import sqlite3
-
 from scrapy.exceptions import DropItem
-
-# Define your item pipelines here
-#
-# Don't forget to add your pipeline to the ITEM_PIPELINES setting
-# See: http://doc.scrapy.org/en/latest/topics/item-pipeline.html
+import structlog
+from w3lib import html
 
 
-class WriteToFilePipeline(object):
-    """
-    Write the body of the scraped project site into a local HTML file
-    """
 
+class HandleContentType(object):
+
+
+    # pylint: disable=unused-argument,no-self-use
     def process_item(self, item, spider):
-        # make output folder if not present
-        # @TODO make dir name configurable in settings
-        if not path.exists('output'):
-            mkdir('output')
+        """
+        """
+        content_type = item.get('content_type', 'UNKNOWN')
+        log = structlog.get_logger().bind(content_type = content_type)
 
-        # create a HTML file using body of project site
-        filename = '{0}-{1}.html'.format(item['course'], item['project_name'])
-        with open(path.join('output', filename), 'w') as f:
-            f.write(item['content'])
+        if content_type == 'HTML':
+            plain_content = html.replace_escape_chars(
+                html.remove_tags(item['content']),
+                which_ones = ('\n','\t','\r','   '),
+                replace_by = '')
+            item['content'] = plain_content
+        # @TODO
+        elif content_type in ['PDF','MS_WORD', 'LIBREOFFICE', 'POWERPOINT', 'CSV', 'XLSX', 'XLS']:
+            log.info(
+                event = 'QUEUE_CONTENT',
+                message = 'Pushing content for deferred processing')
+        elif content_type in [None, 'UNKNOWN']:
+            log.warn(error = 'UNRECOGNIZED_CONTENT_TYPE')
 
         return item
-
-
-class SQLitePipeline(object):
-    """
-    Write the body of the scraped project site into a SQLite database.
-    """
-
-    def open_spider(self, spider):
-        self.db = sqlite3.connect('test.sqlite')
-
-    def close_spider(self, spider):
-        self.db.close()
-
-    def process_item(self, item, spider):
-        cur = self.db.cursor()
-        stmt = """SELECT url FROM content WHERE url=?"""
-        cur.execute(stmt, (item['url'],))
-        query = cur.fetchall()
-        if len(query) == 0:
-            stmt = """
-            INSERT INTO content
-            (url, project_name, course, content)
-            VALUES (?, ?, ?, ?)
-            """
-            cur.execute(stmt, (item['url'], item['project_name'], item['course'], item['content']))
-            self.db.commit()
-            return item
-        cur.close()
-        return DropItem('%s already stored' % (item['url']))
-

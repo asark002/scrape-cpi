@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
 
+from . import _logging
+
+_REMOTE_LOG_ADDR = '127.0.0.1'
+_REMOTE_LOG_PORT = 9000
+_logging.setup(_REMOTE_LOG_ADDR, _REMOTE_LOG_PORT)
+
+
 # Scrapy settings for odu_cpi project
 #
 # For simplicity, this file contains only settings considered important or
@@ -36,7 +43,7 @@ ROBOTSTXT_OBEY = True
 #COOKIES_ENABLED = False
 
 # Disable Telnet Console (enabled by default)
-#TELNETCONSOLE_ENABLED = False
+TELNETCONSOLE_ENABLED = False
 
 # Override the default request headers:
 #DEFAULT_REQUEST_HEADERS = {
@@ -46,9 +53,10 @@ ROBOTSTXT_OBEY = True
 
 # Enable or disable spider middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
+SPIDER_MIDDLEWARES = {
 #    'odu_cpi.middlewares.OduCpiSpiderMiddleware': 543,
-#}
+    'scrapy.spidermiddlewares.httperror.HttpErrorMiddleware': 543,
+}
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
@@ -65,8 +73,7 @@ ROBOTSTXT_OBEY = True
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'odu_cpi.pipelines.WriteToFilePipeline': 300,
-    #'odu_cpi.pipelines.SQLitePipeline': 300,
+    'odu_cpi.pipelines.HandleContentType': 300,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -89,3 +96,8 @@ ITEM_PIPELINES = {
 #HTTPCACHE_DIR = 'httpcache'
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+
+
+# Project specific
+RETRY_ENABLED = False
+RETRY_TIMES = 0

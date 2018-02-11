@@ -9,8 +9,10 @@ import scrapy
 
 
 class OduCpiItem(scrapy.Item):
+    """
+    Container for ODU CPI items
+    """
     project_name = scrapy.Field()
     course = scrapy.Field()
     url = scrapy.Field()
     content = scrapy.Field()
-
