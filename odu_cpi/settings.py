@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from . import _logging
+# @TODO move to root dir
+from odu_cpi import _logging
 
 _REMOTE_LOG_ADDR = '127.0.0.1'
 _REMOTE_LOG_PORT = 9000

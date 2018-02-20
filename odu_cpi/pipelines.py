@@ -14,11 +14,18 @@ class HandleContentType(object):
         """
         """
         content_type = item.get('content_type', 'UNKNOWN')
-        log = structlog.get_logger().bind(content_type = content_type)
+        log = structlog.get_logger().bind(
+            content_type = content_type,
+            source_url = item['source_url'])
 
         if content_type == 'HTML':
             plain_content = html.replace_escape_chars(
-                html.remove_tags(item['content']),
+                html.remove_tags(
+                    html.remove_tags_with_content(
+                        item['content'],
+                        which_ones = ('script',)
+                    )
+                ),
                 which_ones = ('\n','\t','\r','   '),
                 replace_by = '')
             item['content'] = plain_content

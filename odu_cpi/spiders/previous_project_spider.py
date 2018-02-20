@@ -13,7 +13,7 @@ from odu_cpi import items, settings
 class PreviousProjectSpider(scrapy.Spider):
 
 
-    name = 'cpi'
+    name = 'cpi_projects'
     download_timeout = 5.0
     _default_crawl_depth = 1
     _url_black_list = [
