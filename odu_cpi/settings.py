@@ -1,13 +1,5 @@
 # -*- coding: utf-8 -*-
 
-# @TODO move to root dir
-from odu_cpi import _logging
-
-_REMOTE_LOG_ADDR = '127.0.0.1'
-_REMOTE_LOG_PORT = 9000
-_logging.setup(_REMOTE_LOG_ADDR, _REMOTE_LOG_PORT)
-
-
 # Scrapy settings for odu_cpi project
 #
 # For simplicity, this file contains only settings considered important or

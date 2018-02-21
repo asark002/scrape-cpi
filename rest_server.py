@@ -11,6 +11,7 @@ from scrapy.crawler import CrawlerRunner
 import structlog
 from klein import Klein
 
+import _logging
 from odu_cpi.spiders.previous_project_spider import PreviousProjectSpider
 
 
@@ -55,5 +56,6 @@ class RestServer(object):
 
 if __name__ == '__main__':
     # @TODO add cli args
+    _logging.setup('127.0.0.1', 9000)
     app = RestServer()
     app.router.run(host='0.0.0.0', port=9801)
