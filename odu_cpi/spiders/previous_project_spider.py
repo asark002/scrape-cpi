@@ -21,6 +21,7 @@ class PreviousProjectSpider(scrapy.Spider):
         'www.cs.odu.edu/~cs410',
         'www.cs.odu.edu/~cs411',
         'web.odu.edu']
+    _domain_black_list = []
     _file_type_map = {
         'pdf': 'PDF',
         'doc': 'MS_WORD',
@@ -43,8 +44,16 @@ class PreviousProjectSpider(scrapy.Spider):
         'jpeg': 'IMAGE',
         'jpg': 'IMAGE',
         'png': 'IMAGE',
-        'svg': 'IMAGE'}
-    _processable_ext = ['PDF', 'MS_WORD', 'LIBREOFFICE', 'POWERPOINT', 'EXCEL', 'CSV']
+        'svg': 'IMAGE',
+        'xml': 'XML'}
+    _processable_ext = [
+        'EXCEL',
+        'HTML',
+        'LIBREOFFICE',
+        'MS_WORD',
+        'PDF',
+        'POWERPOINT',
+        'XML']
 
 
     def start_requests(self):
@@ -86,40 +95,46 @@ class PreviousProjectSpider(scrapy.Spider):
                     parsed_url.path or '/']
                     ).rstrip('/')
                 content_type = self.determine_type(base_link)
-                if crawl_depth > 0:
+                proceed_to_crawl = all([
+                    crawl_depth >= 0,
+                    base_link not in self._url_black_list,
+                    content_type in self._processable_ext])
+                if crawl_depth >= 0:
                     if base_link not in self._url_black_list:
-                        log.info(
-                            event = 'FOLLOW_HREF',
-                            href = raw_link,
-                            crawl_depth = crawl_depth)
-                        yield response.follow(
-                            raw_link,
-                            callback = self.parse,
-                            errback = self.errback,
-                            meta = dict(
-                                crawl_depth = crawl_depth - 1,
+                        if content_type in self._processable_ext:
+                            log.info(
                                 content_type = content_type,
-                            ),
-                        )
+                                event = 'FOLLOW_HREF',
+                                href = raw_link,
+                                crawl_depth = crawl_depth)
+
+                            # @TODO handle other formats besides HTML
+                            if content_type == 'HTML':
+                                yield response.follow(
+                                    raw_link,
+                                    callback = self.parse,
+                                    errback = self.errback,
+                                    meta = dict(
+                                        crawl_depth = crawl_depth - 1,
+                                        content_type = content_type,
+                                    ),
+                                )
+                            else:
+                                # handle content based on type
+                                yield {
+                                    'source_url': response.url,
+                                    'content_type': content_type,
+                                    'title': base_link,
+                                    'content': None}
+                        else:
+                            log.info(error = 'CANNOT_PROCESS_CONTENT_TYPE')
                     else:
-                        log.info(error = 'CANNOT_PARSE_BLACKLISTED_URL')
-                if crawl_depth <= 0:
+                        log.info(error = 'BLACKLISTED_URL')
+                elif crawl_depth == 0:
                     # do not crawl past this domain layer
                     # @TODO pass visited domains in metadata
-                    if parsed_url.hostname in [None]:
-                        log.info(
-                            event = 'FOLLOW_HREF',
-                            href = raw_link,
-                            crawl_depth = crawl_depth)
-                        yield response.follow(
-                            raw_link,
-                            callback = self.parse,
-                            errback = self.errback,
-                            meta = dict(
-                                crawl_depth = crawl_depth,
-                                content_type = content_type,
-                            ),
-                        )
+                    pass
+
         elif content_type in self._processable_ext:
             # @TODO
             yield {
@@ -138,28 +153,28 @@ class PreviousProjectSpider(scrapy.Spider):
     def errback(self, failure):
         """
         """
-        log = structlog.get_logger().bind(message = str(failure.value))
+        request = failure.request
+        exception = failure.value
+        log = structlog.get_logger().bind(
+            event = 'EXCEPTION',
+            exception_repr = repr(failure.value),
+            source_url = request.url)
 
         if failure.check(tx_error.TimeoutError):
-            request = failure.request
-            log.error(
-                error = 'REQUEST_TIMEOUT',
-                source_url = request.url)
+            log.error(error = 'REQUEST_TIMEOUT')
         elif failure.check(httperror.HttpError):
             response = failure.value.response
             log.error(
-                error = 'HTTP_STATUS',
-                response_code = response.status,
-                source_url = response.url)
+                error = 'NON_200_STATUS',
+                response_code = response.status)
         else:
-            # @TODO add default handler
-            pass
+            log.error(error = 'GENERIC_ERROR')
 
 
     def determine_type(self, link):
         """
         """
-        extension = splitext(link)[1].strip('.')
+        extension = splitext(link)[1].strip('.').lower()
         if extension == '':
             return 'HTML'
         return self._file_type_map.get(extension, 'UNKNOWN')

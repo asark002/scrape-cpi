@@ -45,7 +45,7 @@ class RestServer(object):
         return 'CRAWL_IN_PROGRESS'
 
 
-    def _crawl_complete(self):
+    def _crawl_complete(self, result):
         """
         """
         # @TODO log

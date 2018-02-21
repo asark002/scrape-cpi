@@ -15,7 +15,7 @@ class UDP(object):
         reactor.addSystemEventTrigger('after', 'shutdown', self._close_sock)    #pylint: disable=no-member
 
 
-    def __call__(self, logger, name, event_dict):
+    def __call__(self, _, __, event_dict):
         """
         Called from structlog
         """
@@ -32,6 +32,13 @@ class UDP(object):
         self.udp.close()
 
 
+def log_level(_, level, event_dict):
+    """
+    Place the log level in the dict
+    """
+    event_dict['log_level'] = level
+    return event_dict
+
 
 def setup(remote_log_addr, remote_log_port):
     """
@@ -39,6 +46,7 @@ def setup(remote_log_addr, remote_log_port):
     """
     structlog.configure(
         processors = [ 
+            log_level,
             structlog.processors.TimeStamper(),
             structlog.processors.JSONRenderer(),
             UDP(remote_log_addr, remote_log_port),

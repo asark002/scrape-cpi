@@ -11,7 +11,7 @@ ignore=CVS
 
 # Add files or directories matching the regex patterns to the blacklist. The
 # regex matches against base names, not paths.
-ignore-patterns=
+ignore-patterns=venv
 
 # Python code to execute, usually for sys.path manipulation such as
 # pygtk.require().
@@ -126,10 +126,7 @@ disable=print-statement,
         next-method-defined,
         dict-items-not-iterating,
         dict-keys-not-iterating,
-        dict-values-not-iterating,
-        too-many-ancestors,
-        bad-whitespace,
-        too-few-public-methods
+        dict-values-not-iterating
 
 # Enable the message, report, category or checker with the given id(s). You can
 # either give multiple identifier separated by comma (,) or put this option
