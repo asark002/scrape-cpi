@@ -29,6 +29,7 @@ class HandleContentType(object):
                 which_ones = ('\n','\t','\r','   '),
                 replace_by = '')
             item['content'] = plain_content
+            log.info(content = plain_content)   # @TODO push to Elastic Search
         # @TODO
         elif content_type in ['PDF','MS_WORD', 'LIBREOFFICE', 'POWERPOINT', 'CSV', 'XLSX', 'XLS']:
             log.info(

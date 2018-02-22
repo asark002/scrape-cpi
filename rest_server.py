@@ -8,6 +8,7 @@ Environment variables:
 """
 
 from scrapy.crawler import CrawlerRunner
+from scrapy.utils.project import get_project_settings
 import structlog
 from klein import Klein
 
@@ -32,7 +33,7 @@ class RestServer(object):
             self._active_crawl = True
             # @TODO set callback to set to False after certain interval
 
-            runner = CrawlerRunner()
+            runner = CrawlerRunner(get_project_settings())
             deferred = runner.crawl(PreviousProjectSpider)
             # @TODO handle errors and reset flags
             deferred.addBoth(self._crawl_complete)

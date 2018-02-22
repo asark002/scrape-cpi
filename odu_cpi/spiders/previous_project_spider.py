@@ -68,12 +68,15 @@ class PreviousProjectSpider(scrapy.Spider):
     def parse(self, response):
         """
         """
+        # @FIXME check crawl_depth == 0 early in parsing, elif >0 then parse as normal
+
         crawl_depth = response.meta.get('crawl_depth', self._default_crawl_depth)
         content_type = response.meta.get('content_type', 'UNKNOWN')
         if crawl_depth == self._default_crawl_depth:
             content_type = 'HTML'   # 1st URL most likly is HTML
 
         log = structlog.get_logger().bind(
+            event = 'CRAWL',
             source_url = response.url,
             content_type = content_type)
 
@@ -104,7 +107,7 @@ class PreviousProjectSpider(scrapy.Spider):
                         if content_type in self._processable_ext:
                             log.info(
                                 content_type = content_type,
-                                event = 'FOLLOW_HREF',
+                                action = 'FOLLOW_HREF',
                                 href = raw_link,
                                 crawl_depth = crawl_depth)
 
@@ -117,15 +120,14 @@ class PreviousProjectSpider(scrapy.Spider):
                                     meta = dict(
                                         crawl_depth = crawl_depth - 1,
                                         content_type = content_type,
+                                        splash = {
+                                            'args': {
+                                                'wait': 1,
+                                                'html': 1,
+                                            }
+                                        }
                                     ),
                                 )
-                            else:
-                                # handle content based on type
-                                yield {
-                                    'source_url': response.url,
-                                    'content_type': content_type,
-                                    'title': base_link,
-                                    'content': None}
                         else:
                             log.info(error = 'CANNOT_PROCESS_CONTENT_TYPE')
                     else:
@@ -133,7 +135,7 @@ class PreviousProjectSpider(scrapy.Spider):
                 elif crawl_depth == 0:
                     # do not crawl past this domain layer
                     # @TODO pass visited domains in metadata
-                    pass
+                    '@FIXME'
 
         elif content_type in self._processable_ext:
             # @TODO
@@ -141,7 +143,7 @@ class PreviousProjectSpider(scrapy.Spider):
                 'source_url': response.url,
                 'content_type': content_type,
                 'title': response.url,
-                'content': None}
+                'content': ''}
         elif content_type in ['IMAGE']:
             log.info(event = 'SKIP_CONTENT_TYPE')
         else:
