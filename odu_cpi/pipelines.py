@@ -15,6 +15,7 @@ class HandleContentType(object):
         """
         content_type = item.get('content_type', 'UNKNOWN')
         log = structlog.get_logger().bind(
+            event = 'PROCESS_ITEM',
             content_type = content_type,
             source_url = item['source_url'])
 
