@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from scrapy.exceptions import DropItem
 import structlog
 from w3lib import html
 
@@ -12,6 +11,7 @@ class HandleContentType(object):
     # pylint: disable=unused-argument,no-self-use
     def process_item(self, item, spider):
         """
+        Process content based on its type.
         """
         content_type = item.get('content_type', 'UNKNOWN')
         log = structlog.get_logger().bind(
