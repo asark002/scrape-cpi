@@ -70,23 +70,22 @@ class GenericSpider(Spider):
 
 
     def start_requests(self):
-        """
-        """
-        yield Request(
-            url = 'http://www.cs.odu.edu/~cpi/previous410-411.html',
-            callback = self.parse,
-            errback = self.errback,
-            meta = {
-                'splash': {
-                    'endpoint': 'render.json',
-                    'args': {
-                        'html': 1,
-                        'iframes': 1,
-                        'timeout': 10,
+        for url in self._source_urls:
+            yield Request(
+                url = url,
+                callback = self.parse,
+                errback = self.errback,
+                meta = {
+                    'splash': {
+                        'endpoint': 'render.json',
+                        'args': {
+                            'html': 1,
+                            'iframes': 1,
+                            'timeout': 10,
+                        }
                     }
                 }
-            }
-        )
+            )
 
 
     def parse(self, response):

@@ -1,0 +1,89 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Mariana Crawler REST API",
+    "descreption": "Crawl the deepest document archives!",
+    "version": "1.0"
+  },
+  "host": "cs.odu.edu/~cpi/cs411/",
+  "schemas": ["http", "https"],
+  "basePath": "/v1",
+  "produces": ["application/json"],
+  "paths": {
+    "/crawl": {
+      "post": {
+        "summary": "Initiate the web crawling function.",
+        "parameters": [
+          {
+            "name": "source_urls",
+            "required": true,
+            "in": "content",
+            "description": "The URLs where the HTML will be parsed and links extracted.",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+          },
+          {
+            "name": "crawl_depth",
+            "required": true,
+            "in": "content",
+            "description": "Number of layers the crawler allowed to traverse.",
+            "type": "number",
+            "format": "integer"
+          },
+          {
+            "name": "url_blacklist",
+            "required": false,
+            "in": "content",
+            "description": "Regex list of URL patterns to blacklist.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "url_whitelist",
+            "required": false,
+            "in": "content",
+            "description": "Regex list of URL patterns to whiteist.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "domain_blacklist",
+            "required": false,
+            "in": "content",
+            "description": "Regex list of domain patterns to blacklist.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "domain_whitelist",
+            "required": false,
+            "in": "content",
+            "description": "Regex list of domain patterns to whiteist.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        ]
+      }
+    },
+    "/crawl/status": {
+      "get": {
+        "summary": "Get the current status of crawl."
+      },
+      "responses": {
+        "200": {
+          "description": ""
+        }
+      }
+    }
+  }
+}
