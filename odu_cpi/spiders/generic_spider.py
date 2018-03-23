@@ -1,6 +1,4 @@
-from copy import copy
 from os.path import splitext
-import re
 
 from scrapy import Request, selector, Spider
 from scrapy.spidermiddlewares import httperror
@@ -9,8 +7,6 @@ import structlog
 from twisted.internet import error as tx_error
 from twisted.web import http    # provide universal tools for HTTP parsing
 
-from odu_cpi import items, settings
-
 
 
 class GenericSpider(Spider):
@@ -18,7 +14,7 @@ class GenericSpider(Spider):
 
     name = 'generic'
     _source_urls = []
-    download_timeout = 10.0
+    download_timeout = 5.0
     _crawl_depth = 1
     _patterns_url_whitelist = [
         r'.*cs\.odu\.edu/~(cpi|cs411|cs410)/?',
@@ -106,10 +102,9 @@ class GenericSpider(Spider):
             for route in route_generator:
                 yield route
 
-        if len(response.data.get('childFrames', [])) > 0:
-            frame_list = copy(response.data['childFrames'])
-            while len(frame_list) > 0:
-                frame_item = frame_list.pop()
+        #if len(response.data.get('childFrames', [])) > 0:
+        for child_frames in response.data.get('childFrames', []):
+            for frame_item in child_frames:
                 frame_html = frame_item.get('html', '')
 
                 # @FIXME is there a better way to yield from generator?
@@ -221,13 +216,13 @@ class GenericSpider(Spider):
         exception = failure.value
         log = structlog.get_logger().bind(
             event = 'EXCEPTION',
-            exception_repr = repr(failure.value),
+            exception_repr = repr(exception),
             source_url = request.url)
 
         if failure.check(tx_error.TimeoutError):
             log.error(error = 'REQUEST_TIMEOUT')
         elif failure.check(httperror.HttpError):
-            response = failure.value.response
+            response = exception.response
             log.error(
                 error = 'NON_200_STATUS',
                 response_code = response.status)
@@ -245,4 +240,3 @@ class GenericSpider(Spider):
         if extension == '':
             return 'HTML'
         return self._file_type_map.get(extension, 'UNKNOWN')
-

@@ -58,4 +58,42 @@ python rest_server.py
 
 # Run using Docker Compose
 
-@TODO add docker-compose steps
+```bash
+version: '3'
+services:
+  crawler-http-api:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      
+    ports:
+      - "9801:9801"
+    links:
+      - splash
+      - elasticsearch
+
+  splash:
+    image: "scrapinghub/splash"
+    ports:
+      - 8050:8050
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.2.2
+    container_name: elasticsearch
+    environment:
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    ports:
+      - 9200:9200
+
+volumes:
+  esdata1:
+    driver: local
+```
