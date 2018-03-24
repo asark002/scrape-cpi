@@ -6,6 +6,7 @@ Environment variables:
 * SCRAPY_SETTINGS_MODULE=odu_cpi.settings
 
 """
+from datetime import datetime
 from functools import wraps
 import json
 from uuid import uuid4
@@ -66,6 +67,7 @@ class RestServer(object):
         # @TODO set callback to set to False after certain interval
 
         # update status report dict
+        crawl_start_datetime = datetime.utcnow()
         crawl_id = uuid4().hex
         self.status_report[crawl_id] = 'IN_PROGRESS'
 
@@ -73,7 +75,8 @@ class RestServer(object):
         deferred = runner.crawl(
             GenericSpider,
             _source_urls = user_input['source_urls'],
-            _crawl_depth = user_input['crawl_depth'])
+            _crawl_depth = user_input['crawl_depth'],
+            _crawl_start_datetime = crawl_start_datetime)
         # @TODO handle errors and reset flags
         deferred.addBoth(self._crawl_complete, crawl_id)
 
@@ -114,6 +117,11 @@ class RestServer(object):
 
 if __name__ == '__main__':
     # @TODO add cli args
-    # @TODO setup universal logging
+    # setup universal logging
+    _logging.setup(
+        es_logger_url = get_project_settings()['ELASTICSEARCH_SERVERS'][0],
+        es_logger_index = 'mariana.logger',
+        es_logger_type = 'log_item')
+
     app = RestServer()
-    app.router.run(host='0.0.0.0', port=9801)
+    app.router.run(host = '0.0.0.0', port = 9801)

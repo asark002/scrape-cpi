@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import os
+
 # Scrapy settings for odu_cpi project
 #
 # For simplicity, this file contains only settings considered important or
@@ -16,7 +18,7 @@ NEWSPIDER_MODULE = 'odu_cpi.spiders'
 
 
 # Splash host
-SPLASH_URL = 'http://localhost:8050'
+SPLASH_URL = os.environ.get('SPLASH_URL', 'http://localhost:8050')
 DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
@@ -75,6 +77,7 @@ DOWNLOADER_MIDDLEWARES = {
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
     'odu_cpi.pipelines.HandleContentType': 300,
+    'scrapyelasticsearch.scrapyelasticsearch.ElasticSearchPipeline': 400,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -98,6 +101,13 @@ ITEM_PIPELINES = {
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
 HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
+
+
+# Elasticsearch
+ELASTICSEARCH_SERVERS = [os.environ.get('ELASTICSEARCH_URL', 'http://localhost:9200')]
+ELASTICSEARCH_INDEX = os.environ.get('ELASTICSEARCH_INDEX', 'mariana.content')
+ELASTICSEARCH_TYPE = 'items'
+ELASTICSEARCH_UNIQ_KEY = 'source_url'
 
 
 # Project specific

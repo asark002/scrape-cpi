@@ -1,4 +1,6 @@
 klein
 scrapy
+ScrapyElasticSearch
 scrapy_splash
 structlog
+treq

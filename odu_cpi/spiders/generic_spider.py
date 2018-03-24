@@ -14,7 +14,7 @@ class GenericSpider(Spider):
 
     name = 'generic'
     _source_urls = []
-    download_timeout = 5.0
+    download_timeout = 15.0
     _crawl_depth = 1
     _patterns_url_whitelist = [
         r'.*cs\.odu\.edu/~(cpi|cs411|cs410)/?',
@@ -140,6 +140,7 @@ class GenericSpider(Spider):
 
         yield dict(
             source_url = response.url,
+            crawl_timestamp = self._crawl_start_datetime.strftime('%Y-%m-%dT%H:%M:%SZ'),
             title = title,
             content_type = 'HTML',
             content = body.extract())
@@ -214,15 +215,15 @@ class GenericSpider(Spider):
         """
         request = failure.request
         exception = failure.value
+        response = exception.response
         log = structlog.get_logger().bind(
             event = 'EXCEPTION',
             exception_repr = repr(exception),
-            source_url = request.url)
+            source_url = response.url)
 
         if failure.check(tx_error.TimeoutError):
             log.error(error = 'REQUEST_TIMEOUT')
         elif failure.check(httperror.HttpError):
-            response = exception.response
             log.error(
                 error = 'NON_200_STATUS',
                 response_code = response.status)

@@ -1,27 +1,58 @@
 import json
 import socket
 import structlog
-from twisted.internet import reactor
+
+from scrapy.utils.project import get_project_settings
+import treq
 
 
 
-def log_level(_, level, event_dict):
-    """
-    Place the log level in the dict
-    """
-    event_dict['log_level'] = level
-    return event_dict
+class ElasticsearchLogger(object):
+
+
+    def __init__(self, es_url, es_index, es_type):
+        self.es_url = es_url
+        self.es_index = es_index
+        self.es_type = es_type
+        self.es_uri =  '/'.join([
+            self.es_url,
+            self.es_index,
+            self.es_type])
 
 
 
-def setup(remote_log_addr, remote_log_port):
+    def __call__(self, _, level, event_dict):
+        log_request = treq.post(
+            self.es_uri,
+            headers = {'content-type': 'application/json'},
+            json = event_dict)
+        log_request.addCallback(self.swallow_success)
+        log_request.addErrback(self.swallow_error)
+        return event_dict
+
+
+    def swallow_success(self, response):
+        """
+        Swallow success callback
+        """
+
+
+    def swallow_error(self, failure):
+        """
+        Swallow errors
+        """
+
+
+
+def setup(es_logger_url, es_logger_index, es_logger_type):
     """
     Setup universal logging
     """
     structlog.configure(
         processors = [ 
-            log_level,
-            structlog.processors.TimeStamper(),
+            structlog.stdlib.add_log_level,
+            structlog.processors.TimeStamper(fmt='iso'),
+            ElasticsearchLogger(es_logger_url, es_logger_index, es_logger_type),
             structlog.processors.JSONRenderer(),
         ]
     )
