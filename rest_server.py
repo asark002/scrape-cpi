@@ -54,11 +54,17 @@ class RestServer(object):
         try:
             body = request.content.read().decode('utf8')
             user_input = json.loads(body)
+
+            # crude type validation
             assert isinstance(user_input['source_urls'], list)
             assert isinstance(user_input['crawl_depth'], int)
+            assert isinstance(user_input.get('elasticsearch_index', 'mariana.content'), str)
             assert isinstance(user_input.get('url_whitelist'), (type(None), str, list))
-        except:
-            # @FIXME raise universal exception for JSON error
+            assert isinstance(user_input.get('url_blacklist'), (type(None), str, list))
+            assert isinstance(user_input.get('domain_whitelist'), (type(None), str, list))
+            assert isinstance(user_input.get('domain_blacklist'), (type(None), str, list))
+        except AssertionError:
+            # @TODO add logging
             request.setResponseCode(400)
             return {'error': 'JSON_ERROR'}
 
@@ -78,7 +84,7 @@ class RestServer(object):
             _crawl_depth = user_input['crawl_depth'],
             _crawl_start_datetime = crawl_start_datetime)
         # @TODO handle errors and reset flags
-        deferred.addBoth(self._crawl_complete, crawl_id)
+        deferred.addBoth(self.on_crawl_complete, crawl_id)
 
         # @TODO return meaningful msg w/ reference #
         return {'crawl_id': crawl_id, 'status': 'CRAWL_INITIATED'}
@@ -90,10 +96,12 @@ class RestServer(object):
         """
         Get the current status of crawl
         """
-        # @TODO set correct status code
+        response = {'message_type': 'CRAWL_STATUS_REPORT', 'status_report': self.status_report}
         if self.active_crawl:
-            return {'crawl_in_progress': True, 'status_report': self.status_report}
-        return {'crawl_in_progress': False, 'status_report': self.status_report}
+            response['crawl_in_progress'] = True
+        else:
+            response['crawl_in_progress'] = False
+        return response
 
 
     @router.route('/crawl/status/<crawl_id>', methods=['GET'])
@@ -102,10 +110,19 @@ class RestServer(object):
         """
         Get the status of a specific id
         """
-        return {'status': self.status_report.get(crawl_id), 'crawl_id': crawl_id}
+        response = {'message_type': 'CRAWL_STATUS', 'crawl_id': crawl_id}
+        current_status = self.status_report.get(crawl_id)
+
+        if current_status is not None:
+            response['status'] = current_status
+        else:
+            request.setResponseCode(404)
+            response['error'] = 'CRAWL_ID_NOT_FOUND'
+
+        return response
 
 
-    def _crawl_complete(self, result, crawl_id):
+    def on_crawl_complete(self, result, crawl_id):
         """
         Cleanup after crawl is complete
         """
