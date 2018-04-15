@@ -219,17 +219,15 @@ class GenericSpider(Spider):
         log = structlog.get_logger().bind(
             event = 'EXCEPTION',
             exception_repr = repr(exception),
-            source_url = response.url)
+            source_url = response.url,
+            response_code = response.status)
 
         if failure.check(tx_error.TimeoutError):
             log.error(error = 'REQUEST_TIMEOUT')
         elif failure.check(httperror.HttpError):
-            log.error(
-                error = 'NON_200_STATUS',
-                response_code = response.status)
+            log.error(error = 'NON_200_STATUS')
         else:
             log.error(error = 'GENERIC_ERROR')
-
 
     def identify_type_from_url(self, url):
         """

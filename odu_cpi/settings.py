@@ -22,10 +22,10 @@ SPLASH_URL = os.environ.get('SPLASH_URL', 'http://localhost:8050')
 DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'odu_cpi (+http://www.yourdomain.com)'
+USER_AGENT = 'Mariana Crawler'
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 CONCURRENT_REQUESTS = 32
@@ -106,7 +106,7 @@ HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
 # Elasticsearch
 ELASTICSEARCH_SERVERS = [os.environ.get('ELASTICSEARCH_URL', 'http://localhost:9200')]
 ELASTICSEARCH_INDEX = os.environ.get('ELASTICSEARCH_INDEX', 'mariana.content')
-ELASTICSEARCH_TYPE = 'items'
+ELASTICSEARCH_TYPE = 'item'
 ELASTICSEARCH_UNIQ_KEY = 'source_url'
 
 
