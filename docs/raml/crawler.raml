@@ -28,6 +28,13 @@ baseUri: http://cs.odu.edu
             required: true
             type: string
             default: mariana.content
+          crawler_timeout:
+            description: |
+              The total duration time the crawler should run in minutes.
+              If `0` then there is no timeout and crawls may potentially run forever.
+            required: false
+            type: integer
+            default: 30
           url_blacklist:
             description: |
               Regex list of URL patterns.

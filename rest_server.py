@@ -86,7 +86,16 @@ class RestServer(object):
             # crude type validation
             assert isinstance(user_input['source_urls'], list)
             assert isinstance(user_input['crawl_depth'], int)
-            assert isinstance(user_input.get('elasticsearch_index', 'mariana.content'), str)
+
+            elasticsearch_index = user_input.get('elasticsearch_index', 'mariana.content')
+            assert isinstance(elasticsearch_index, str)
+
+            crawler_timeout = user_input.get('crawler_timeout', 30)
+            assert isinstance(crawler_timeout, int)
+            assert crawler_timeout >= 0
+            if crawler_timeout is not None:
+                # convert to seconds
+                crawler_timeout *= 60
 
             url_whitelist = user_input.get('url_whitelist')
             assert isinstance(url_whitelist, (type(None), str, list))
@@ -133,9 +142,10 @@ class RestServer(object):
 
         # get crawl settings
         crawl_settings = get_project_settings()
-        elasticsearch_index = user_input.get('elasticsearch_index', 'mariana.content')
         if elasticsearch_index != crawl_settings['ELASTICSEARCH_INDEX']:
             crawl_settings['ELASTICSEARCH_INDEX'] = elasticsearch_index
+        if crawler_timeout != crawl_settings['CLOSESPIDER_TIMEOUT']:
+            crawl_settings['CLOSESPIDER_TIMEOUT'] = crawler_timeout
 
         # run crawler
         runner = CrawlerRunner(crawl_settings)
