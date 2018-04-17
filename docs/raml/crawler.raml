@@ -1,0 +1,182 @@
+#%RAML 1.0
+---
+title: Mariana Crawler REST API
+baseUri: http://cs.odu.edu
+
+/crawl:
+  post:
+    description: |
+      Initiate crawls of the `source_urls`.
+    body:
+      application/json:
+        properties:
+          source_urls:
+            description: |
+              The URLs where the HTML will be parsed and links extracted.
+            required: true
+            type: string[]
+            example: ["http://example-1.com", "http://example-2.edu"]
+          crawl_depth:
+            description: |
+              Number of layers the crawler allowed to traverse.
+            required: true
+            type: integer
+            default: 1
+          elasticsearch_index:
+            description: |
+              Elasticsearch index that the extracted content will be stored under.
+            required: true
+            type: string
+            default: mariana.content
+          crawler_timeout:
+            description: |
+              The total duration time the crawler should run in minutes.
+              If `0` then there is no timeout and crawls may potentially run forever.
+            required: false
+            type: integer
+            default: 30
+          url_blacklist:
+            description: |
+              Regex list of URL patterns.
+              URL addresses that match any of these patterns will not have its content scraped.
+            required: false
+            type: string[]
+            example: [".*(facebook|linkedin|reddit|twitter|youtube).(com|net)", "(maps|accounts).google"]
+          url_whitelist:
+            description: |
+              Regex list of URL patterns.
+              URL addresses that match any of these patterns will have its content scraped even if it matches a `url_blacklist` pattern.
+            required: false
+            type: string[]
+            example: [".*cs.odu.edu/~(cpi|cs411|cs410)/?", ".*(sites|docs).google/+.*"]
+          domain_blacklist:
+            description: |
+              Regex list of URL patterns.
+              Domains that match any of these patterns will not have its content scraped.
+            required: false
+            type: string[]
+            example: ["facebook|linkedin|reddit|twitter|youtube", "(accounts|map).google"]
+          domain_whitelist:
+            description: |
+              Regex list of URL patterns.
+              Domains that match any of these patterns will have its content scraped even if it matches a `domain_blacklist` pattern.
+            required: false
+            type: string[]
+            example: ["((cs)\\.)*odu.edu", "(sites|accounts).google"]
+        example: {
+          "source_urls":  ["http://example-1.com", "http://example-2.com",],
+          "crawl_depth": 3,
+          "elasticsearch_index": "mariana.index",
+          "domain_blacklist": ["facebook|linkedin|reddit|twitter|youtube"]
+        }
+    responses:
+      200:
+        body:
+          application/json:
+            properties:
+              crawl_id:
+                description: |
+                  UUID assigned to a particular crawl.
+                required: true
+                type: string
+                example: ca9c6ff1107f480ea95a9dc6ac724523
+              status:
+                required: true
+                type: string
+            example: {
+              "crawl_id": "ed64520b671840c7977c268b188ff0fd",
+              "status": "CRAWL_INITIATED"
+            }
+      208:
+        body:
+          application/json:
+            properties:
+              status:
+                required: true
+                type: string
+            example: {
+              "status": "CRAWL_IN_PROGRESS"
+            }
+      400:
+        body:
+          application/json:
+            properties:
+              error:
+                required: true
+                type: string
+            example: {
+              "error": "JSON_ERROR"
+            }
+
+  /status:
+    get:
+      description: |
+        Get the current status of all crawls.
+      responses:
+        200:
+          body:
+            application/json:
+              properties:
+                message_type:
+                  required: true
+                  type: string
+                status_report:
+                  required: true
+                  type: object
+                crawl_in_progress:
+                  required: true
+                  type: boolean
+              example: {
+                "message_type": "CRAWL_STATUS_REPORT",
+                "crawl_in_progress": false,
+                "status_report": {
+                  "5d3f6e6900cb405494686aa30bf48627": "IN_PROGRESS",
+                  "ca9c6ff1107f480ea95a9dc6ac724523": "COMPLETE",
+                  "ed64520b671840c7977c268b188ff0fd": "COMPLETE"
+                }
+              }
+
+    /{crawl_id}:
+      uriParameters:
+        crawl_id:
+          description: |
+            UUID assigned to a particular crawl.
+      get:
+        description:
+          Get the status of a specific crawl using the `crawl_id`.
+        responses:
+          200:
+            body:
+              application/json:
+                properties:
+                  message_type:
+                    required: true
+                    type: string
+                  crawl_id:
+                    required: true
+                    type: string
+                  status:
+                    required: true
+                    type: string
+                example: {
+                  "message_type": "CRAWL_STATUS",
+                  "crawl_id": "5d3f6e6900cb405494686aa30bf48627",
+                  "status": "IN_PROGRESS"}
+          404:
+            body:
+              application/json:
+                properties:
+                  message_type:
+                    required: true
+                    type: string
+                  crawl_id:
+                    required: true
+                    type: string
+                  error:
+                    required: true
+                    type: string
+                example: {
+                  "message_type": "CRAWL_STATUS",
+                  "crawl_id": "5d3f6e6900cb405494686aa30bf48627",
+                  "error": "CRAWL_ID_NOT_FOUND"
+                }

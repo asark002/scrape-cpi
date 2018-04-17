@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import os
+
 # Scrapy settings for odu_cpi project
 #
 # For simplicity, this file contains only settings considered important or
@@ -15,14 +17,18 @@ SPIDER_MODULES = ['odu_cpi.spiders']
 NEWSPIDER_MODULE = 'odu_cpi.spiders'
 
 
+# Splash host
+SPLASH_URL = os.environ.get('SPLASH_URL', 'http://localhost:8050')
+DUPEFILTER_CLASS = 'scrapy_splash.SplashAwareDupeFilter'
+
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
-#USER_AGENT = 'odu_cpi (+http://www.yourdomain.com)'
+USER_AGENT = 'Mariana Crawler'
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
-#CONCURRENT_REQUESTS = 32
+CONCURRENT_REQUESTS = 32
 
 # Configure a delay for requests for the same website (default: 0)
 # See http://scrapy.readthedocs.org/en/latest/topics/settings.html#download-delay
@@ -36,7 +42,7 @@ ROBOTSTXT_OBEY = True
 #COOKIES_ENABLED = False
 
 # Disable Telnet Console (enabled by default)
-#TELNETCONSOLE_ENABLED = False
+TELNETCONSOLE_ENABLED = False
 
 # Override the default request headers:
 #DEFAULT_REQUEST_HEADERS = {
@@ -46,27 +52,33 @@ ROBOTSTXT_OBEY = True
 
 # Enable or disable spider middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
+SPIDER_MIDDLEWARES = {
+    'scrapy_splash.SplashDeduplicateArgsMiddleware': 100,
 #    'odu_cpi.middlewares.OduCpiSpiderMiddleware': 543,
-#}
+    'scrapy.spidermiddlewares.httperror.HttpErrorMiddleware': 543,
+}
 
 # Enable or disable downloader middlewares
 # See http://scrapy.readthedocs.org/en/latest/topics/downloader-middleware.html
-#DOWNLOADER_MIDDLEWARES = {
+DOWNLOADER_MIDDLEWARES = {
 #    'odu_cpi.middlewares.MyCustomDownloaderMiddleware': 543,
-#}
+    'scrapy_splash.SplashCookiesMiddleware': 723,
+    'scrapy_splash.SplashMiddleware': 725,
+    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
+}
 
 # Enable or disable extensions
 # See http://scrapy.readthedocs.org/en/latest/topics/extensions.html
-#EXTENSIONS = {
+EXTENSIONS = {
 #    'scrapy.extensions.telnet.TelnetConsole': None,
-#}
+    'scrapy.extensions.closespider.CloseSpider': 100,
+}
 
 # Configure item pipelines
 # See http://scrapy.readthedocs.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'odu_cpi.pipelines.WriteToFilePipeline': 300,
-    #'odu_cpi.pipelines.SQLitePipeline': 300,
+    'odu_cpi.pipelines.HandleContentType': 300,
+    'scrapyelasticsearch.scrapyelasticsearch.ElasticSearchPipeline': 400,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -89,3 +101,20 @@ ITEM_PIPELINES = {
 #HTTPCACHE_DIR = 'httpcache'
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
+HTTPCACHE_STORAGE = 'scrapy_splash.SplashAwareFSCacheStorage'
+
+
+# Close spider after time exceeds
+CLOSESPIDER_TIMEOUT = 1800
+
+
+# Elasticsearch
+ELASTICSEARCH_SERVERS = [os.environ.get('ELASTICSEARCH_URL', 'http://localhost:9200')]
+ELASTICSEARCH_INDEX = os.environ.get('ELASTICSEARCH_INDEX', 'mariana.content')
+ELASTICSEARCH_TYPE = 'item'
+ELASTICSEARCH_UNIQ_KEY = 'source_url'
+
+
+# Project specific
+RETRY_ENABLED = False
+RETRY_TIMES = 0

@@ -1,50 +1,183 @@
-import scrapy
+from os.path import splitext
 
-from odu_cpi import items
+import scrapy
+from scrapy.spidermiddlewares import httperror
+import structlog
+from twisted.internet import error as tx_error
+from twisted.web import http    # provide universal tools for HTTP parsing
+
+from odu_cpi import items, settings
+
 
 
 class PreviousProjectSpider(scrapy.Spider):
 
-    name = 'projects'
-    start_urls = ['http://www.cs.odu.edu/~cpi/previous410-411.html']
+
+    name = 'cpi_projects'
+    download_timeout = 5.0
+    _default_crawl_depth = 1
+    _url_black_list = [
+        'www.cs.odu.edu',
+        'www.cs.odu.edu/~cs410',
+        'www.cs.odu.edu/~cs411',
+        'web.odu.edu']
+    _domain_black_list = []
+    _file_type_map = {
+        'pdf': 'PDF',
+        'doc': 'MS_WORD',
+        'docx': 'MS_WORD',
+        'odt': 'LIBREOFFICE',
+        'pptx': 'POWERPOINT',
+        'ppt': 'POWERPOINT',
+        'xlsx': 'EXCEL',
+        'xls': 'EXCEL',
+        'csv': 'CSV',
+        'php': 'HTML',
+        'html': 'HTML',
+        'htm': 'HTML',
+        'org': 'HTML',
+        'net': 'HTML',
+        'com': 'HTML',
+        'edu': 'HTML',
+        'bmp': 'IMAGE',
+        'gif': 'IMAGE',
+        'jpeg': 'IMAGE',
+        'jpg': 'IMAGE',
+        'png': 'IMAGE',
+        'svg': 'IMAGE',
+        'xml': 'XML'}
+    _processable_ext = [
+        'EXCEL',
+        'HTML',
+        'LIBREOFFICE',
+        'MS_WORD',
+        'PDF',
+        'POWERPOINT',
+        'XML']
+
+
+    def start_requests(self):
+        """
+        """
+        yield scrapy.Request(
+            url = 'http://www.cs.odu.edu/~cpi/previous410-411.html',
+            callback = self.parse,
+            errback = self.errback)
+
 
     def parse(self, response):
         """
         """
-        columns = response.xpath('//div[@class="container"]//div//div[@class="col-2"]')
-        for col in columns:
-            course = col.xpath('.//h2/text()').extract_first()
-            if course == 'CS 410 Previous Projects- Web Pages':
-                course = 'CS 410'
-            elif course == 'CS 411 Previous Projects- Web Pages':
-                course = 'CS 411'
+        # @FIXME check crawl_depth == 0 early in parsing, elif >0 then parse as normal
 
-            for item in col.xpath('.//ul//li//a'):
-                name = item.xpath('.//text()').extract_first().replace('\n', '')
-                link = item.xpath('.//@href').extract_first()
-                follow = response.follow(
-                    link,
-                    callback = self.parse_projects,
-                    errback = self.request_error,
-                    meta = {
-                        'course': course,
-                        'project_name': name
-                    }
-                )
-                #print('{0} - {1}: {2}'.format(cs_course, name, follow.url))
-                yield follow
+        crawl_depth = response.meta.get('crawl_depth', self._default_crawl_depth)
+        content_type = response.meta.get('content_type', 'UNKNOWN')
+        if crawl_depth == self._default_crawl_depth:
+            content_type = 'HTML'   # 1st URL most likly is HTML
 
-    def parse_projects(self, response):
-        """
-        """
-        cpi_item = items.OduCpiItem(
-            course = response.meta['course'],
-            project_name = response.meta['project_name'],
-            url = response.url,
-            content = response.xpath('//html').extract_first())
-        yield cpi_item
+        log = structlog.get_logger().bind(
+            event = 'CRAWL',
+            source_url = response.url,
+            content_type = content_type)
 
-    def request_error(self, failure):
+        if content_type == 'HTML':
+            body = response.xpath('//body')[0]
+            yield {
+                'source_url': response.url,
+                'content_type': content_type,
+                'title': response.xpath('//head//title/text()').extract_first(),
+                'content': body.extract()}
+
+            #
+            links = body.xpath('.//a/@href')
+            for element in links:
+                raw_link = element.extract()
+                parsed_url = http.urlparse(raw_link.encode('utf8')).decode()
+                base_link = ''.join([
+                    parsed_url.hostname or '',
+                    parsed_url.path or '/']
+                    ).rstrip('/')
+                content_type = self.determine_type(base_link)
+                proceed_to_crawl = all([
+                    crawl_depth >= 0,
+                    base_link not in self._url_black_list,
+                    content_type in self._processable_ext])
+                if crawl_depth >= 0:
+                    if base_link not in self._url_black_list:
+                        if content_type in self._processable_ext:
+                            log.info(
+                                content_type = content_type,
+                                action = 'FOLLOW_HREF',
+                                href = raw_link,
+                                crawl_depth = crawl_depth)
+
+                            # @TODO handle other formats besides HTML
+                            if content_type == 'HTML':
+                                yield response.follow(
+                                    raw_link,
+                                    callback = self.parse,
+                                    errback = self.errback,
+                                    meta = dict(
+                                        crawl_depth = crawl_depth - 1,
+                                        content_type = content_type,
+                                        splash = {
+                                            'args': {
+                                                'wait': 1,
+                                                'html': 1,
+                                            }
+                                        }
+                                    ),
+                                )
+                        else:
+                            log.info(error = 'CANNOT_PROCESS_CONTENT_TYPE')
+                    else:
+                        log.info(error = 'BLACKLISTED_URL')
+                elif crawl_depth == 0:
+                    # do not crawl past this domain layer
+                    # @TODO pass visited domains in metadata
+                    '@FIXME'
+
+        elif content_type in self._processable_ext:
+            # @TODO
+            yield {
+                'source_url': response.url,
+                'content_type': content_type,
+                'title': response.url,
+                'content': ''}
+        elif content_type in ['IMAGE']:
+            log.info(event = 'SKIP_CONTENT_TYPE')
+        else:
+            log.warn(
+                response_code = response.status,
+                error = 'UNABLE_TO_PARSE')
+
+
+    def errback(self, failure):
         """
         """
+        request = failure.request
+        exception = failure.value
+        log = structlog.get_logger().bind(
+            event = 'EXCEPTION',
+            exception_repr = repr(failure.value),
+            source_url = request.url)
+
+        if failure.check(tx_error.TimeoutError):
+            log.error(error = 'REQUEST_TIMEOUT')
+        elif failure.check(httperror.HttpError):
+            response = failure.value.response
+            log.error(
+                error = 'NON_200_STATUS',
+                response_code = response.status)
+        else:
+            log.error(error = 'GENERIC_ERROR')
+
+
+    def determine_type(self, link):
+        """
+        """
+        extension = splitext(link)[1].strip('.').lower()
+        if extension == '':
+            return 'HTML'
+        return self._file_type_map.get(extension, 'UNKNOWN')
 

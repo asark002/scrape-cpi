@@ -1,0 +1,63 @@
+version: '3'
+services:
+  crawler-api:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    environment:
+      SPLASH_URL: http://splash:8050
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_INDEX: mariana.content
+      
+    ports:
+      - "9801:9801"
+    links:
+      - splash
+      - elasticsearch
+
+  splash:
+    image: "scrapinghub/splash"
+    ports:
+      - "8050:8050"
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.2.2
+    container_name: elasticsearch
+    environment:
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata1:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana-oss:6.2.3
+    environment:
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      SEVER_HOST: 0.0.0.0
+      SERVER_BASEPATH: /kibana
+      STATUS_ALLOWANONYMOUS: "true"
+    links:
+      - elasticsearch
+    ports:
+      - "5601:5601"
+
+  nginx:
+    image: nginx
+    volumes:
+      - ./configs/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    links:
+      - crawler-api
+      - kibana
+    ports:
+      - "8000:80"
+volumes:
+  esdata1:
+    driver: local
+
