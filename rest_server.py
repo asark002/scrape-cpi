@@ -36,8 +36,8 @@ class Jsonify(object):
             d = defer.maybeDeferred(fn, *args, **kwargs)
             d.addCallback(json.dumps, indent=self.indent)
             d.addErrback(self.jsonify_failure, args[1])
+            d.addBoth(self.finalize, args[1])
             return d
-            #return json.dumps(fn(*args, **kwargs))
         return _wrapper
 
 
@@ -48,7 +48,12 @@ class Jsonify(object):
             response_code = 500)
         log.error(error = 'JSON_SERVER_ERROR', message = 'Unable to convert response to JSON')
         request.setResponseCode(500)
-        return json.dumps({'error': 'JSON_SERVER_ERROR'})
+        return json.dumps({'error': 'JSON_SERVER_ERROR'}, indent=self.indent)
+
+
+    def finalize(self, result, request):
+        request.responseHeaders.addRawHeader('Content-Type', 'application/json')
+        return result
 
 
 
@@ -76,17 +81,44 @@ class RestServer(object):
         try:
             body = request.content.read().decode('utf8')
             user_input = json.loads(body)
+            params = {}
 
             # crude type validation
             assert isinstance(user_input['source_urls'], list)
             assert isinstance(user_input['crawl_depth'], int)
             assert isinstance(user_input.get('elasticsearch_index', 'mariana.content'), str)
-            assert isinstance(user_input.get('url_whitelist'), (type(None), str, list))
-            assert isinstance(user_input.get('url_blacklist'), (type(None), str, list))
+
+            url_whitelist = user_input.get('url_whitelist')
+            assert isinstance(url_whitelist, (type(None), str, list))
+            if url_whitelist is not None:
+                params['_patterns_url_whitelist'] = url_whitelist
+
+            url_blacklist = user_input.get('url_blacklist')
+            assert isinstance(url_blacklist, (type(None), str, list))
+            if url_blacklist is not None:
+                params['_patterns_url_blacklist'] = url_blacklist
+
+            domain_whitelist = user_input.get('domain_whitelist')
             assert isinstance(user_input.get('domain_whitelist'), (type(None), str, list))
+            if domain_whitelist is not None:
+                params['_patterns_domain_whitelist'] = domain_whitelist
+
+            domain_blacklist = user_input.get('domain_blacklist')
             assert isinstance(user_input.get('domain_blacklist'), (type(None), str, list))
-        except (AssertionError, Exception):
-            # @TODO add logging
+            if domain_blacklist is not None:
+                params['_patterns_domain_blacklist'] = domain_blacklist
+        except (AssertionError, KeyError) as error:
+            error_log = structlog.get_logger().bind(
+                event = 'JSON_VALIDATION_ERROR',
+                exception_repr = repr(error))
+            error_log.error(message = 'Invalid user input')
+            request.setResponseCode(400)
+            return {'error': 'JSON_VALIDATION_ERROR'}
+        except Exception as error:
+            error_log = structlog.get_logger().bind(
+                event = 'JSON_DECODE_ERROR',
+                exception_repr = repr(error))
+            error_log.error(message = 'Unable to decode content into JSON')
             request.setResponseCode(400)
             return {'error': 'JSON_ERROR'}
 
@@ -112,9 +144,12 @@ class RestServer(object):
             _source_urls = user_input['source_urls'],
             _crawl_depth = user_input['crawl_depth'],
             # @FIXME using the datetime as an id is misleading
-            _crawl_start_datetime = crawl_start_datetime)
-        # @TODO handle errors and reset flags
-        deferred.addBoth(self.on_crawl_complete, crawl_id)
+            _crawl_start_datetime = crawl_start_datetime,
+            **params)
+
+        deferred.addCallback(self.on_crawl_success, crawl_id)
+        deferred.addErrback(self.on_crawl_failure, crawl_id)
+        deferred.addBoth(self.on_crawl_complete)
 
         # @TODO return meaningful msg w/ reference #
         return {'crawl_id': crawl_id, 'status': 'CRAWL_INITIATED'}
@@ -138,11 +173,24 @@ class RestServer(object):
             health_list = response.setdefault('elasticsearch_health_checks', [])
             health_check_item = {'message_type': 'ELASTICSEARCH_HEALTH_CHECK', 'hostname': url}
 
-            result = yield treq.get(url, timeout=3)
-            if result.code == 200:
-                health_check_item.update({'status': 'OK'})
-            else:
-                health_check_item.update({'status': 'ERROR'})
+            try:
+                result = yield treq.get(url, timeout=3)
+                if result.code == 200:
+                    health_check_item.update({'status': 'OK'})
+                else:
+                    error_log = structlog.get_logger().bind(
+                        event = 'ELASTICSEARCH_SERVICE_DOWN',
+                        elasticsearch_hostname = url)
+                    error_log.error(message = 'Elasticsearch service is down')
+                    health_check_item.update({'status': 'ERROR'})
+            except Exception as error:
+                error_log = structlog.get_logger().bind(
+                    event = 'ELASTICSEARCH_SERVICE_DOWN',
+                    elasticsearch_hostname = url)
+                error_log.error(
+                    message = 'Elasticsearch service is down',
+                    exception_repr = repr(error))
+                health_check_item['status'] = 'ERROR'
 
             health_list.append(health_check_item)
 
@@ -169,13 +217,35 @@ class RestServer(object):
         return response
 
 
-    def on_crawl_complete(self, result, crawl_id):
+    def on_crawl_failure(self, failure, crawl_id):
+        """
+        Catastrophic failure within spider
+        """
+        log = structlog.get_logger().bind(
+            event = 'FAILURE_DURING_CRAWL',
+            exception_repr = repr(failure.value),
+            crawl_id = crawl_id)
+        log.error(message = 'Catastrophic failure during crawl')
+        self.status_report[crawl_id] = 'FAILED'
+
+
+    def on_crawl_success(self, result, crawl_id):
+        """
+        Crawl is successful
+        """
+        log = structlog.get_logger().bind(
+            event = 'SUCCESSFUL_CRAWL',
+            crawl_id = crawl_id)
+        log.info(message = 'Successful crawl')
+        self.status_report[crawl_id] = 'COMPLETE'
+
+
+    def on_crawl_complete(self, result):
         """
         Cleanup after crawl is complete
         """
         # @TODO log
         self.active_crawl = False
-        self.status_report[crawl_id] = 'COMPLETE'
 
 
 

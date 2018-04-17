@@ -16,20 +16,24 @@ class GenericSpider(Spider):
     _source_urls = []
     download_timeout = 15.0
     _crawl_depth = 1
-    _patterns_url_whitelist = [
-        r'.*cs\.odu\.edu/~(cpi|cs411|cs410)/?',
-        r'.*(docs|sites)\.google.com/',
-        ]
-    _patterns_url_blacklist = [
-        r'^.*\.cs\.odu\.edu/~(cpi|cs411|cs410)/?$',
-        r'^.*\.cs\.odu\.edu/~cpi/previous410-411.html$',
-        ]
-    _patterns_domain_blacklist = [
-        r'.*(accounts\.google|facebook|linkedin|reddit|twitter|youtube)']
-    _link_extractor = LxmlLinkExtractor(
-        allow = _patterns_url_whitelist,
-        deny = _patterns_url_blacklist,
-        deny_domains = _patterns_domain_blacklist,)
+    _patterns_url_whitelist = None
+    #_patterns_url_whitelist = [
+    #    r'.*cs\.odu\.edu/~(cpi|cs411|cs410)/?',
+    #    r'.*(docs|sites)\.google.com/',
+    #    ]
+    _patterns_url_blacklist = None
+    #_patterns_url_blacklist = [
+    #    r'^.*\.cs\.odu\.edu/~(cpi|cs411|cs410)/?$',
+    #    r'^.*\.cs\.odu\.edu/~cpi/previous410-411.html$',
+    #    ]
+    _patterns_domain_whitelist = None
+    _patterns_domain_blacklist = None
+    #_patterns_domain_blacklist = [
+    #    r'.*(accounts\.google|facebook|linkedin|reddit|twitter|youtube)']
+    #_link_extractor = LxmlLinkExtractor(
+    #    allow = _patterns_url_whitelist,
+    #    deny = _patterns_url_blacklist,
+    #    deny_domains = _patterns_domain_blacklist,)
     _file_type_map = {
         'pdf': 'PDF',
         'doc': 'MS_WORD',
@@ -150,7 +154,12 @@ class GenericSpider(Spider):
         self._traversed_domains.add(parsed_resp_url.netloc)
 
         # extract links
-        href_list = self._link_extractor.extract_links(response)
+        linkextractor = LxmlLinkExtractor(
+            allow = self._patterns_url_whitelist,
+            deny = self._patterns_url_blacklist,
+            allow_domains = self._patterns_domain_whitelist,
+            deny_domains = self._patterns_domain_blacklist)
+        href_list = linkextractor.extract_links(response)
         for link in href_list:
             # get the URL in string format
             href = link.url
