@@ -30,10 +30,6 @@ class GenericSpider(Spider):
     _patterns_domain_blacklist = None
     #_patterns_domain_blacklist = [
     #    r'.*(accounts\.google|facebook|linkedin|reddit|twitter|youtube)']
-    #_link_extractor = LxmlLinkExtractor(
-    #    allow = _patterns_url_whitelist,
-    #    deny = _patterns_url_blacklist,
-    #    deny_domains = _patterns_domain_blacklist,)
     _file_type_map = {
         'pdf': 'PDF',
         'doc': 'MS_WORD',
@@ -237,6 +233,7 @@ class GenericSpider(Spider):
             log.error(error = 'NON_200_STATUS')
         else:
             log.error(error = 'GENERIC_ERROR')
+
 
     def identify_type_from_url(self, url):
         """

@@ -20,7 +20,6 @@ class ElasticsearchLogger(object):
             self.es_type])
 
 
-
     def __call__(self, _, level, event_dict):
         log_request = treq.post(
             self.es_uri,
